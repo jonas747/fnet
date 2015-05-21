@@ -1,0 +1,17 @@
+package simplechat;
+
+enum events {
+	USERJOIN = 1;
+	USERLEAVE = 2;
+	MESSAGE = 3;
+}
+
+message user {
+	optional string name = 1;
+}
+
+
+message chatMsg {
+	optional string from = 1;
+	optional string msg = 2;
+}

@@ -31,6 +31,9 @@ func main() {
 	fmt.Println("Running simplechat client!")
 	engine := fnet.NewEngine()
 
+	// stats
+	go simplechat.Monitor()
+
 	hUserMsg, err := fnet.NewHandler(HandleMsg, int32(simplechat.Events_MESSAGE))
 	panicErr(err)
 
@@ -47,14 +50,13 @@ func main() {
 	name := ""
 	fmt.Scanln(&name)
 
-	msg := &fnet.Message{
-		EvtId: int32(simplechat.Events_USERJOIN),
-		PB: &simplechat.User{
-			Name: proto.String(name),
-		},
+	msg := &simplechat.User{
+		Name: proto.String(name),
 	}
 
-	err = conn.Send(msg)
+	raw, err := engine.CreateWireMessage(int32(simplechat.Events_USERJOIN), msg)
+	panicErr(err)
+	err = conn.Send(raw)
 	panicErr(err)
 
 	for {
@@ -62,14 +64,13 @@ func main() {
 		line, err := reader.ReadString('\n')
 		panicErr(err)
 		line = line[:len(line)-1]
-		msg := &fnet.Message{
-			EvtId: int32(simplechat.Events_MESSAGE),
-			PB: &simplechat.ChatMsg{
-				Msg: proto.String(line),
-			},
+		msg := &simplechat.ChatMsg{
+			Msg: proto.String(line),
 		}
 
-		err = conn.Send(msg)
+		raw, err := engine.CreateWireMessage(int32(simplechat.Events_MESSAGE), msg)
+		panicErr(err)
+		err = conn.Send(raw)
 		panicErr(err)
 	}
 }

@@ -32,6 +32,9 @@ func main() {
 	flag.Parse()
 	fmt.Println("Running simplechat server!")
 
+	// Stats
+	go simplechat.Monitor()
+
 	// Initialize the handlers
 	hUserJoin, err := fnet.NewHandler(HandleUserJoin, int32(simplechat.Events_USERJOIN))
 	hUserLeave, err2 := fnet.NewHandler(HandleUserLeave, int32(simplechat.Events_USERLEAVE))
@@ -60,14 +63,17 @@ func main() {
 		if ok {
 			nameStr := name.(string)
 			chatMsg := fmt.Sprintf("\"%s\" Has left!", nameStr)
-			msg := fnet.Message{
-				PB: &simplechat.ChatMsg{
-					From: proto.String("server"),
-					Msg:  proto.String(chatMsg),
-				},
-				EvtId: int32(simplechat.Events_MESSAGE),
+			msg := &simplechat.ChatMsg{
+				From: proto.String("server"),
+				Msg:  proto.String(chatMsg),
 			}
-			engine.Broadcast(msg)
+
+			raw, err := engine.CreateWireMessage(int32(simplechat.Events_MESSAGE), msg)
+			if err != nil {
+				fmt.Println("Error: ", err)
+				continue
+			}
+			engine.Broadcast(raw)
 		}
 	}
 }
@@ -75,14 +81,18 @@ func main() {
 func HandleUserJoin(conn fnet.Connection, user simplechat.User) {
 	name := user.GetName()
 	conn.GetSessionData().Set("name", name)
-	msg := fnet.Message{
-		EvtId: int32(simplechat.Events_MESSAGE),
-		PB: &simplechat.ChatMsg{
-			From: proto.String("server"),
-			Msg:  proto.String("\"" + name + "\" Joined!"),
-		},
+	msg := &simplechat.ChatMsg{
+		From: proto.String("server"),
+		Msg:  proto.String("\"" + name + "\" Joined!"),
 	}
-	engine.Broadcast(msg)
+
+	raw, err := engine.CreateWireMessage(int32(simplechat.Events_MESSAGE), msg)
+	if err != nil {
+		fmt.Println("Error: ", err)
+		return
+	}
+
+	engine.Broadcast(raw)
 }
 
 func HandleUserLeave(conn fnet.Connection, user simplechat.User) {
@@ -92,12 +102,16 @@ func HandleUserLeave(conn fnet.Connection, user simplechat.User) {
 func HandleSendMsg(conn fnet.Connection, msg simplechat.ChatMsg) {
 	name, _ := conn.GetSessionData().Get("name")
 	nameStr := name.(string)
-	reponse := fnet.Message{
-		EvtId: int32(simplechat.Events_MESSAGE),
-		PB: &simplechat.ChatMsg{
-			From: proto.String(nameStr),
-			Msg:  proto.String(msg.GetMsg()),
-		},
+	response := &simplechat.ChatMsg{
+		From: proto.String(nameStr),
+		Msg:  proto.String(msg.GetMsg()),
 	}
-	engine.Broadcast(reponse)
+
+	raw, err := engine.CreateWireMessage(int32(simplechat.Events_MESSAGE), response)
+	if err != nil {
+		fmt.Println("Error: ", err)
+		return
+	}
+
+	engine.Broadcast(raw)
 }

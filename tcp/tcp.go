@@ -1,6 +1,7 @@
 package tcp
 
 import (
+	"fmt"
 	"github.com/jonas747/fnet"
 	"io"
 	"net"
@@ -67,6 +68,7 @@ type TCPConn struct {
 
 	writeChan   chan []byte
 	stopWriting chan bool
+	writing     bool
 
 	isOpen bool
 }
@@ -111,12 +113,13 @@ func (t *TCPConn) Kind() string {
 
 // Implements Connection.Close()
 func (t *TCPConn) Close() {
-	if !t.isOpen {
-		return
+	if t.isOpen {
+		t.isOpen = false
+		t.conn.Close()
 	}
-	t.isOpen = false
-	t.stopWriting <- true
-	t.conn.Close()
+	if t.writing {
+		t.stopWriting <- true
+	}
 }
 
 func (t *TCPConn) Open() bool {
@@ -133,15 +136,19 @@ func (t *TCPConn) Run() {
 	go t.writer()
 }
 
-func (w *TCPConn) writer() {
+func (t *TCPConn) writer() {
+	t.writing = true
+	defer func() {
+		t.writing = false
+	}()
 	for {
 		select {
-		case m := <-w.writeChan:
-			_, err := w.conn.Write(m)
+		case m := <-t.writeChan:
+			_, err := t.conn.Write(m)
 			if err != nil {
 				break
 			}
-		case <-w.stopWriting:
+		case <-t.stopWriting:
 			return
 		}
 	}

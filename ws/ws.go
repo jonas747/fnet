@@ -49,6 +49,7 @@ type WebsocketConn struct {
 
 	writeChan   chan []byte
 	stopWriting chan bool
+	writing     bool
 
 	isOpen bool
 }
@@ -93,8 +94,13 @@ func (w *WebsocketConn) Kind() string {
 
 // Implements Connection.Close()
 func (w *WebsocketConn) Close() {
-	w.isOpen = false
-	w.conn.Close()
+	if w.isOpen {
+		w.isOpen = false
+		w.conn.Close()
+	}
+	if w.writing {
+		w.stopWriting <- true
+	}
 }
 
 func (w *WebsocketConn) Open() bool {
@@ -113,6 +119,10 @@ func (w *WebsocketConn) Run() {
 
 // Writes messages from WebsocketConn.writeChan, Which is used by WebsocketConn.Write([]byte)
 func (w *WebsocketConn) writer() {
+	w.writing = true
+	defer func() {
+		w.writing = false
+	}()
 	for {
 		select {
 		case m := <-w.writeChan:

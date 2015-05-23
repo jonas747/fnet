@@ -64,6 +64,8 @@ func (e *Engine) HandleConn(conn Connection) {
 			break
 		}
 	}
+
+	conn.Close()
 	e.unregisterConn <- conn
 }
 

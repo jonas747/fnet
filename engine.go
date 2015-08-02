@@ -3,7 +3,6 @@ package fnet
 import (
 	"bytes"
 	"encoding/binary"
-	"errors"
 	"fmt"
 	"reflect"
 )
@@ -24,7 +23,7 @@ type Engine struct {
 	ErrChan     chan error
 }
 
-func NewEngine() *Engine {
+func DefaultEngine() *Engine {
 	return &Engine{
 		ConnCloseChan:  make(chan Connection),
 		registerConn:   make(chan Connection),
@@ -60,8 +59,10 @@ func (e *Engine) HandleConn(conn Connection) {
 	for {
 		err := e.readMessage(conn)
 		if err != nil {
-			fmt.Println(err)
-			break
+			fmt.Println("Error: ", err)
+			if err != ErrNoHandlerFound {
+				break
+			}
 		}
 	}
 
@@ -72,7 +73,9 @@ func (e *Engine) HandleConn(conn Connection) {
 func (e *Engine) readMessage(conn Connection) error {
 	// start with receving the evt id and payload length
 	header := make([]byte, 8)
+	fmt.Println("Waiting on header...")
 	err := conn.Read(header)
+	fmt.Println("Received header! prcoessing it...")
 	if err != nil {
 		return err
 	}
@@ -80,14 +83,21 @@ func (e *Engine) readMessage(conn Connection) error {
 	if err != nil {
 		return err
 	}
+	fmt.Println(evtId, pl)
 
 	payload := make([]byte, pl)
-	if pl != 0 {
-		err = conn.Read(payload)
-		if err != nil {
-			return err
+	if pl > 0 {
+		fmt.Println("Waiting on payload")
+		if pl != 0 {
+			err = conn.Read(payload)
+			if err != nil {
+				return err
+			}
 		}
+	} else {
+		fmt.Println("No payload...")
 	}
+	fmt.Println("Received payload! Processing it...")
 	return e.handleMessage(evtId, payload, conn)
 }
 
@@ -111,21 +121,24 @@ func readHeader(header []byte) (evtId int32, payloadLength int32, err error) {
 func (e *Engine) handleMessage(evtId int32, payload []byte, conn Connection) error {
 	handler, found := e.handlers[evtId]
 	if !found {
-		return errors.New(fmt.Sprintf("No handler found for %d", evtId))
+		return ErrNoHandlerFound
 	}
 
-	decoded := reflect.New(handler.DataType).Interface() // We use reflect to unmarshal the data into the appropiate typewww
+	var args = make([]reflect.Value, 0)
+	connVal := reflect.ValueOf(conn)
+	args = append(args, connVal)
 	if len(payload) > 0 {
+		decoded := reflect.New(handler.DataType).Interface() // We use reflect to unmarshal the data into the appropiate typewww
 		err := e.Encoder.Unmarshal(payload, decoded)
 		if err != nil {
 			return err
 		}
+		decVal := reflect.Indirect(reflect.ValueOf(decoded)) // decoded is a pointer, so we get the value it points to
+		args = append(args, decVal)
 	}
 	// ready the function
 	funcVal := reflect.ValueOf(handler.CallBack)
-	decVal := reflect.Indirect(reflect.ValueOf(decoded)) // decoded is a pointer, so we get the value it points to
-	connVal := reflect.ValueOf(conn)
-	resp := funcVal.Call([]reflect.Value{connVal, decVal}) // Call it
+	resp := funcVal.Call(args) // Call it
 	if len(resp) == 0 {
 		return nil
 	}

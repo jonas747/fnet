@@ -12,6 +12,7 @@ var (
 	ErrSliceLengthsDiffer = errors.New("Slice lengths differ")
 	ErrConnClosed         = errors.New("Connection closed")
 	ErrTimeout            = errors.New("Timed out")
+	ErrNoHandlerFound     = errors.New("No Handler found")
 )
 
 // Listener is a interface for listening for incoming connections
@@ -80,13 +81,26 @@ func NewHandler(callback interface{}, evt int32) (Handler, error) {
 	}, nil
 }
 
+// Panics if an error occurs instead of returning it
+func NewHandlerSafe(callback interface{}, evt int32) Handler {
+	err := validateCallback(callback)
+	if err != nil {
+		panic(err)
+	}
+
+	dType := reflect.TypeOf(callback).In(1) // Get the type of the first parameter for later use
+
+	return Handler{
+		CallBack: callback,
+		Event:    evt,
+		DataType: dType,
+	}
+}
+
 func validateCallback(callback interface{}) error {
 	t := reflect.TypeOf(callback)
 	if t.Kind() != reflect.Func {
 		return errors.New("Callback not a function")
-	}
-	if t.NumIn() != 2 {
-		return errors.New("Callback does not have 2 parameters")
 	}
 	return nil
 }

@@ -1,8 +1,8 @@
 package ws
 
 import (
-	"code.google.com/p/go.net/websocket"
 	"github.com/jonas747/fnet"
+	"golang.org/x/net/websocket"
 )
 
 func Dial(addr, protocol, origin string) (fnet.Connection, error) {

@@ -1,9 +1,10 @@
 package ws
 
 import (
-	"code.google.com/p/go.net/websocket"
 	"errors"
+	"fmt"
 	"github.com/jonas747/fnet"
+	"golang.org/x/net/websocket"
 	"net/http"
 	"time"
 )
@@ -18,6 +19,7 @@ type WebsocketListener struct {
 func (w *WebsocketListener) Listen() error {
 	handler := func(ws *websocket.Conn) {
 		conn := NewWebsocketConn(ws)
+		fmt.Println("Received new connection")
 		w.Engine.HandleConn(conn)
 	}
 
@@ -83,7 +85,7 @@ func (w *WebsocketConn) Send(b []byte) error {
 }
 
 func (w *WebsocketConn) Read(buf []byte) error {
-	err := websocket.Message.Receive(w.conn, buf)
+	_, err := w.conn.Read(buf)
 	return err
 }
 

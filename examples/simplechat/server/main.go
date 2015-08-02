@@ -6,7 +6,8 @@ import (
 	"github.com/golang/protobuf/proto"
 	"github.com/jonas747/fnet"
 	"github.com/jonas747/fnet/examples/simplechat"
-	"github.com/jonas747/fnet/tcp"
+	//"github.com/jonas747/fnet/tcp"
+	"github.com/jonas747/fnet/ws"
 )
 
 var addr = flag.String("addr", ":7449", "The address to listen on")
@@ -44,7 +45,7 @@ func main() {
 	engine = fnet.NewEngine()
 	engine.AddHandlers(hUserJoin, hUserLeave, hUserMsg)
 
-	listener := &tcp.TCPListner{
+	listener := &ws.WebsocketListener{
 		Engine: engine,
 		Addr:   *addr,
 	}
@@ -56,26 +57,6 @@ func main() {
 
 	engine.EmitConnOnClose = true
 
-	// Code below to broadcast clients that has left
-	for {
-		c := <-engine.ConnCloseChan
-		name, ok := c.GetSessionData().Get("name")
-		if ok {
-			nameStr := name.(string)
-			chatMsg := fmt.Sprintf("\"%s\" Has left!", nameStr)
-			msg := &simplechat.ChatMsg{
-				From: proto.String("server"),
-				Msg:  proto.String(chatMsg),
-			}
-
-			raw, err := engine.CreateWireMessage(int32(simplechat.Events_MESSAGE), msg)
-			if err != nil {
-				fmt.Println("Error: ", err)
-				continue
-			}
-			engine.Broadcast(raw)
-		}
-	}
 }
 
 func HandleUserJoin(conn fnet.Connection, user simplechat.User) {
@@ -91,6 +72,8 @@ func HandleUserJoin(conn fnet.Connection, user simplechat.User) {
 		fmt.Println("Error: ", err)
 		return
 	}
+
+	fmt.Println(name + " Joined the chat!")
 
 	engine.Broadcast(raw)
 }

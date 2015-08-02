@@ -7,11 +7,12 @@ import (
 	"github.com/golang/protobuf/proto"
 	"github.com/jonas747/fnet"
 	"github.com/jonas747/fnet/examples/simplechat"
-	"github.com/jonas747/fnet/tcp"
+	//"github.com/jonas747/fnet/tcp"
+	"github.com/jonas747/fnet/ws"
 	"os"
 )
 
-var addr = flag.String("addr", "home.jonas747.com:7449", "The address to listen on")
+var addr = flag.String("addr", "ws://home.jonas747.com:7449", "The address to listen on")
 
 func panicErr(err error) {
 	if err != nil {
@@ -32,13 +33,13 @@ func main() {
 	engine := fnet.NewEngine()
 
 	// stats
-	go simplechat.Monitor()
+	//go simplechat.Monitor()
 
 	hUserMsg, err := fnet.NewHandler(HandleMsg, int32(simplechat.Events_MESSAGE))
 	panicErr(err)
 
 	engine.AddHandler(hUserMsg)
-	conn, err := tcp.Dial(*addr)
+	conn, err := ws.Dial(*addr, "", "http://localhost/")
 	panicErr(err)
 
 	// Start all goroutines

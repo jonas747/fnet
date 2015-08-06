@@ -37,14 +37,18 @@ type Handler struct {
 
 func (e *Engine) CreateWireMessage(evtId int32, data interface{}) ([]byte, error) {
 	// Encode the message itself
-	encoded, err := e.Encoder.Marshal(data)
-	if err != nil {
-		return make([]byte, 0), err
+	encoded := make([]byte, 0)
+	if data != nil {
+		e, err := e.Encoder.Marshal(data)
+		if err != nil {
+			return make([]byte, 0), err
+		}
+		encoded = e
 	}
 
 	// Create a new buffer, stuff the event id and the encoded message in it
 	buffer := new(bytes.Buffer)
-	err = binary.Write(buffer, binary.LittleEndian, evtId)
+	err := binary.Write(buffer, binary.LittleEndian, evtId)
 	if err != nil {
 		return make([]byte, 0), err
 	}
@@ -56,10 +60,12 @@ func (e *Engine) CreateWireMessage(evtId int32, data interface{}) ([]byte, error
 		return make([]byte, 0), err
 	}
 
-	// Then the actual payload
-	_, err = buffer.Write(encoded)
-	if err != nil {
-		return make([]byte, 0), err
+	// Then the actual payload, if any
+	if len(encoded) > 0 {
+		_, err = buffer.Write(encoded)
+		if err != nil {
+			return make([]byte, 0), err
+		}
 	}
 
 	unread := buffer.Bytes()

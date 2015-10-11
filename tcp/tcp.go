@@ -1,7 +1,6 @@
 package tcp
 
 import (
-	"fmt"
 	"github.com/jonas747/fnet"
 	"io"
 	"net"
@@ -38,12 +37,16 @@ func (t *TCPListner) Listen() error {
 			// Continue normally
 		}
 
-		con, err := listener.Accept()
+		conn, err := listener.Accept()
 		if err != nil {
 			return err
 		}
-		wrappedConn := NewTCPConn(con)
-		go t.Engine.HandleConn(wrappedConn)
+		wrappedConn := NewTCPConn(conn)
+		session := fnet.Session{
+			Conn: wrappedConn,
+			Data: new(fnet.SessionStore),
+		}
+		go t.Engine.HandleConn(session)
 	}
 }
 

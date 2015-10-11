@@ -1,8 +1,6 @@
 package fnet
 
 import (
-	"bytes"
-	"encoding/binary"
 	"errors"
 	"reflect"
 )
@@ -35,43 +33,6 @@ type Handler struct {
 	DataType reflect.Type
 }
 
-func (e *Engine) CreateWireMessage(evtId int32, data interface{}) ([]byte, error) {
-	// Encode the message itself
-	encoded := make([]byte, 0)
-	if data != nil {
-		e, err := e.Encoder.Marshal(data)
-		if err != nil {
-			return make([]byte, 0), err
-		}
-		encoded = e
-	}
-
-	// Create a new buffer, stuff the event id and the encoded message in it
-	buffer := new(bytes.Buffer)
-	err := binary.Write(buffer, binary.LittleEndian, evtId)
-	if err != nil {
-		return make([]byte, 0), err
-	}
-
-	// Add the length to the buffer
-	length := len(encoded)
-	err = binary.Write(buffer, binary.LittleEndian, int32(length))
-	if err != nil {
-		return make([]byte, 0), err
-	}
-
-	// Then the actual payload, if any
-	if len(encoded) > 0 {
-		_, err = buffer.Write(encoded)
-		if err != nil {
-			return make([]byte, 0), err
-		}
-	}
-
-	unread := buffer.Bytes()
-	return unread, nil
-}
-
 func NewHandler(callback interface{}, evt int32) (Handler, error) {
 	err := validateCallback(callback)
 	if err != nil {
@@ -94,7 +55,12 @@ func NewHandlerSafe(callback interface{}, evt int32) Handler {
 		panic(err)
 	}
 
-	dType := reflect.TypeOf(callback).In(1) // Get the type of the first parameter for later use
+	t := reflect.TypeOf(callback)
+
+	var dType reflect.Type
+	if t.NumIn() == 2 {
+		dType = reflect.TypeOf(callback).In(1) // Get the type of the first parameter for later use
+	}
 
 	return Handler{
 		CallBack: callback,

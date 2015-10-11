@@ -1,0 +1,59 @@
+goroutine profile: total 18
+1 @ 0x4b787f 0x4b764a 0x4b2f2b 0x401f38 0x431e2e 0x460141
+#	0x4b787f	runtime/pprof.writeRuntimeProfile+0xbf	c:/go/src/runtime/pprof/pprof.go:545
+#	0x4b764a	runtime/pprof.writeGoroutine+0x9a	c:/go/src/runtime/pprof/pprof.go:507
+#	0x4b2f2b	runtime/pprof.(*Profile).WriteTo+0xdb	c:/go/src/runtime/pprof/pprof.go:236
+#	0x401f38	main.main+0xbb8				C:/Users/jonas/Dropbox/go/src/github.com/jonas747/fnet/examples/simplechat/server/main.go:86
+#	0x431e2e	runtime.main+0x27e			c:/go/src/runtime/proc.go:111
+
+1 @ 0x43223c 0x43230b 0x432026 0x460141
+#	0x43223c	runtime.gopark+0x17c		c:/go/src/runtime/proc.go:186
+#	0x43230b	runtime.goparkunlock+0x5b	c:/go/src/runtime/proc.go:191
+#	0x432026	runtime.forcegchelper+0xc6	c:/go/src/runtime/proc.go:152
+
+1 @ 0x43223c 0x43230b 0x42114b 0x460141
+#	0x43223c	runtime.gopark+0x17c		c:/go/src/runtime/proc.go:186
+#	0x43230b	runtime.goparkunlock+0x5b	c:/go/src/runtime/proc.go:191
+#	0x42114b	runtime.bgsweep+0x15b		c:/go/src/runtime/mgcsweep.go:67
+
+1 @ 0x43223c 0x43230b 0x418c18 0x460141
+#	0x43223c	runtime.gopark+0x17c		c:/go/src/runtime/proc.go:186
+#	0x43230b	runtime.goparkunlock+0x5b	c:/go/src/runtime/proc.go:191
+#	0x418c18	runtime.runfinq+0xb8		c:/go/src/runtime/mfinal.go:154
+
+1 @ 0x43223c 0x43230b 0x407556 0x406bfb 0x4a884f 0x460141
+#	0x4a884f	github.com/jonas747/fnet/examples/simplechat.Monitor+0x9f	C:/Users/jonas/Dropbox/go/src/github.com/jonas747/fnet/examples/simplechat/simplechat.go:14
+
+1 @ 0x43223c 0x4408e2 0x43fe32 0x4a6d52 0x460141
+#	0x4a6d52	github.com/jonas747/fnet.(*Engine).ListenChannels+0x402	C:/Users/jonas/Dropbox/go/src/github.com/jonas747/fnet/engine.go:167
+
+8 @ 0x43223c 0x41c3bc 0x460141
+#	0x43223c	runtime.gopark+0x17c		c:/go/src/runtime/proc.go:186
+#	0x41c3bc	runtime.gcBgMarkWorker+0x10c	c:/go/src/runtime/mgc.go:1289
+
+1 @ 0x43223c 0x4408e2 0x43fe32 0x40136e 0x460141
+#	0x40136e	main.listenErrors+0x32e	C:/Users/jonas/Dropbox/go/src/github.com/jonas747/fnet/examples/simplechat/server/main.go:34
+
+1 @ 0x411f44 0x44c2ec 0x460141
+#	0x411f44	runtime.notetsleepg+0x94	c:/go/src/runtime/lock_sema.go:265
+#	0x44c2ec	runtime.timerproc+0xec		c:/go/src/runtime/time.go:209
+
+1 @ 0x43223c 0x42b7e5 0x42aca7 0x5c34a1 0x5c46b7 0x5c7b9c 0x5c8103 0x5e2384 0x562ca8 0x56207a 0x561f3d 0x562606 0x4b9fe9 0x4a7c2e 0x460141
+#	0x42aca7	net.runtime_pollWait+0x67					c:/go/src/runtime/netpoll.go:157
+#	0x5c34a1	net.(*pollDesc).Wait+0x41					c:/go/src/net/fd_poll_runtime.go:73
+#	0x5c46b7	net.(*ioSrv).ExecIO+0x177					c:/go/src/net/fd_windows.go:182
+#	0x5c7b9c	net.(*netFD).acceptOne+0x26c					c:/go/src/net/fd_windows.go:564
+#	0x5c8103	net.(*netFD).accept+0x173					c:/go/src/net/fd_windows.go:594
+#	0x5e2384	net.(*TCPListener).AcceptTCP+0x54				c:/go/src/net/tcpsock_posix.go:254
+#	0x562ca8	net/http.tcpKeepAliveListener.Accept+0x48			c:/go/src/net/http/server.go:2135
+#	0x56207a	net/http.(*Server).Serve+0xba					c:/go/src/net/http/server.go:1887
+#	0x561f3d	net/http.(*Server).ListenAndServe+0x13d				c:/go/src/net/http/server.go:1877
+#	0x562606	net/http.ListenAndServe+0x96					c:/go/src/net/http/server.go:1967
+#	0x4b9fe9	github.com/jonas747/fnet/ws.(*WebsocketListener).Listen+0x149	C:/Users/jonas/Dropbox/go/src/github.com/jonas747/fnet/ws/ws.go:32
+#	0x4a7c2e	github.com/jonas747/fnet.(*Engine).AddListener.func1+0x2e	C:/Users/jonas/Dropbox/go/src/github.com/jonas747/fnet/engine.go:48
+
+1 @ 0x43223c 0x43230b 0x41b189 0x460141
+#	0x43223c	runtime.gopark+0x17c		c:/go/src/runtime/proc.go:186
+#	0x43230b	runtime.goparkunlock+0x5b	c:/go/src/runtime/proc.go:191
+#	0x41b189	runtime.backgroundgc+0x99	c:/go/src/runtime/mgc.go:900
+

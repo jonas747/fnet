@@ -9,31 +9,30 @@ import (
 
 // The networking engine. Holds togheter all the connections and handlers
 type Engine struct {
-	ConnCloseChan   chan Connection
-	EmitConnOnClose bool
-	Encoder         Encoder // The encoder/decoder to use
+	Encoder     Encoder // The encoder/decoder to use
+	OnConnOpen  func(Session)
+	OnConnClose func(Session)
 
-	registerConn   chan Connection // Channel for registering new connections
-	unregisterConn chan Connection // Channel for unregistering connections
-	broadcastChan  chan []byte     // Channel for broadcasting messages to all connections
+	registerSession   chan Session // Channel for registering new connections
+	unregisterSession chan Session // Channel for unregistering connections
+	broadcastChan     chan []byte  // Channel for broadcasting messages to all connections
 
-	listeners   []Listener          // Slice Containing all listeners
-	handlers    map[int32]Handler   // Map with all the event handlers, their id's as keys
-	connections map[Connection]bool // Map containing all conncetions
-	ErrChan     chan error
+	listeners []Listener        // Slice Containing all listeners
+	handlers  map[int32]Handler // Map with all the event handlers, their id's as keys
+	sessions  map[Session]bool  // Map containing all conncetions
+	ErrChan   chan error
 }
 
 func DefaultEngine() *Engine {
 	return &Engine{
-		ConnCloseChan:  make(chan Connection),
-		registerConn:   make(chan Connection),
-		unregisterConn: make(chan Connection),
-		broadcastChan:  make(chan []byte),
-		listeners:      make([]Listener, 0),
-		handlers:       make(map[int32]Handler),
-		connections:    make(map[Connection]bool),
-		ErrChan:        make(chan error),
-		Encoder:        ProtoEncoder{},
+		registerSession:   make(chan Session),
+		unregisterSession: make(chan Session),
+		broadcastChan:     make(chan []byte),
+		listeners:         make([]Listener, 0),
+		handlers:          make(map[int32]Handler),
+		sessions:          make(map[Session]bool),
+		ErrChan:           make(chan error),
+		Encoder:           ProtoEncoder{},
 	}
 }
 
@@ -53,11 +52,16 @@ func (e *Engine) AddListener(listener Listener) {
 }
 
 // Handles connections
-func (e *Engine) HandleConn(conn Connection) {
-	conn.Run()
-	e.registerConn <- conn
+func (e *Engine) HandleConn(session Session) {
+	session.Conn.Run()
+
+	e.registerSession <- session
+	if e.OnConnOpen != nil {
+		e.OnConnOpen(session)
+	}
+
 	for {
-		err := e.readMessage(conn)
+		err := e.readMessage(session)
 		if err != nil {
 			fmt.Println("Error: ", err)
 			if err != ErrNoHandlerFound {
@@ -66,16 +70,19 @@ func (e *Engine) HandleConn(conn Connection) {
 		}
 	}
 
-	conn.Close()
-	e.unregisterConn <- conn
+	session.Conn.Close()
+	e.unregisterSession <- session
+	if e.OnConnClose != nil {
+		e.OnConnClose(session)
+	}
 }
 
-func (e *Engine) readMessage(conn Connection) error {
+func (e *Engine) readMessage(session Session) error {
+	conn := session.Conn
+
 	// start with receving the evt id and payload length
 	header := make([]byte, 8)
-	fmt.Println("Waiting on header...")
 	err := conn.Read(header)
-	fmt.Println("Received header! prcoessing it...")
 	if err != nil {
 		return err
 	}
@@ -83,22 +90,16 @@ func (e *Engine) readMessage(conn Connection) error {
 	if err != nil {
 		return err
 	}
-	fmt.Println(evtId, pl)
-
 	payload := make([]byte, pl)
 	if pl > 0 {
-		fmt.Println("Waiting on payload")
-		if pl != 0 {
-			err = conn.Read(payload)
-			if err != nil {
-				return err
-			}
+		err = conn.Read(payload)
+		if err != nil {
+			return err
 		}
 	} else {
-		fmt.Println("No payload...")
+		//fmt.Println("No payload!")
 	}
-	fmt.Println("Received payload! Processing it...")
-	return e.handleMessage(evtId, payload, conn)
+	return e.handleMessage(evtId, payload, session)
 }
 
 func readHeader(header []byte) (evtId int32, payloadLength int32, err error) {
@@ -113,20 +114,19 @@ func readHeader(header []byte) (evtId int32, payloadLength int32, err error) {
 	if err != nil {
 		return
 	}
-
 	return
 }
 
 // Retrieves the event id, decodes the data and calls the callback
-func (e *Engine) handleMessage(evtId int32, payload []byte, conn Connection) error {
+func (e *Engine) handleMessage(evtId int32, payload []byte, seesion Session) error {
 	handler, found := e.handlers[evtId]
 	if !found {
 		return ErrNoHandlerFound
 	}
 
 	var args = make([]reflect.Value, 0)
-	connVal := reflect.ValueOf(conn)
-	args = append(args, connVal)
+	sesisonVal := reflect.ValueOf(seesion)
+	args = append(args, sesisonVal)
 	if len(payload) > 0 {
 		decoded := reflect.New(handler.DataType).Interface() // We use reflect to unmarshal the data into the appropiate typewww
 		err := e.Encoder.Unmarshal(payload, decoded)
@@ -144,6 +144,7 @@ func (e *Engine) handleMessage(evtId int32, payload []byte, conn Connection) err
 	}
 
 	// Todo, allow the handlers to return stuff to send
+	// for a simple request response type structure
 
 	return nil
 }
@@ -153,25 +154,24 @@ func (e *Engine) AddHandler(handler Handler) {
 	e.handlers[handler.Event] = handler
 }
 
+// Adds multiple handlers
 func (e *Engine) AddHandlers(handlers ...Handler) {
 	for _, v := range handlers {
 		e.AddHandler(v)
 	}
 }
 
+// Listen for messages on all the channels
 func (e *Engine) ListenChannels() {
 	for {
 		select {
-		case d := <-e.registerConn: //Register a connection
-			e.connections[d] = true
-		case d := <-e.unregisterConn: //Unregister a connection
-			delete(e.connections, d)
-			if e.EmitConnOnClose {
-				e.ConnCloseChan <- d
-			}
+		case d := <-e.registerSession: //Register a connection
+			e.sessions[d] = true
+		case d := <-e.unregisterSession: //Unregister a connection
+			delete(e.sessions, d)
 		case msg := <-e.broadcastChan: //Broadcast a message to all connections
-			for conn := range e.connections {
-				err := conn.Send(msg)
+			for sess := range e.sessions {
+				err := sess.Conn.Send(msg)
 				if err != nil {
 					e.ErrChan <- err
 				}
@@ -181,5 +181,61 @@ func (e *Engine) ListenChannels() {
 }
 
 func (e *Engine) NumClients() int {
-	return len(e.connections)
+	return len(e.sessions)
+}
+
+func (e *Engine) CreateWireMessage(evtId int32, data interface{}) ([]byte, error) {
+	// Encode the message itself
+	encoded := make([]byte, 0)
+	if data != nil {
+		e, err := e.Encoder.Marshal(data)
+		if err != nil {
+			return make([]byte, 0), err
+		}
+		encoded = e
+	}
+
+	// Create a new buffer, stuff the event id and the encoded message in it
+	buffer := new(bytes.Buffer)
+	err := binary.Write(buffer, binary.LittleEndian, evtId)
+	if err != nil {
+		return make([]byte, 0), err
+	}
+
+	// Add the length to the buffer
+	length := len(encoded)
+	err = binary.Write(buffer, binary.LittleEndian, int32(length))
+	if err != nil {
+		return make([]byte, 0), err
+	}
+
+	// Then the actual payload, if any
+	if len(encoded) > 0 {
+		_, err = buffer.Write(encoded)
+		if err != nil {
+			return make([]byte, 0), err
+		}
+
+	}
+
+	unread := buffer.Bytes()
+	return unread, nil
+}
+
+func (e *Engine) CreateAndSend(session Session, evtId int32, data interface{}) error {
+	wireMessage, err := e.CreateWireMessage(evtId, data)
+	if err != nil {
+		return err
+	}
+
+	return session.Conn.Send(wireMessage)
+}
+
+func (e *Engine) CreateAndBroadcast(evtId int32, data interface{}) error {
+	wireMessage, err := e.CreateWireMessage(evtId, data)
+	if err != nil {
+		return err
+	}
+	e.Broadcast(wireMessage)
+	return nil
 }

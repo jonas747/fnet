@@ -5,12 +5,18 @@ import (
 	"golang.org/x/net/websocket"
 )
 
-func Dial(addr, protocol, origin string) (fnet.Connection, error) {
+func Dial(addr, protocol, origin string) (fnet.Session, error) {
 	nativeConn, err := websocket.Dial(addr, protocol, origin)
 	if err != nil {
-		return nil, err
+		return fnet.Session{}, err
 	}
 
 	wrappedConn := NewWebsocketConn(nativeConn)
-	return wrappedConn, nil
+
+	session := fnet.Session{
+		Conn: wrappedConn,
+		Data: new(fnet.SessionStore),
+	}
+
+	return session, nil
 }

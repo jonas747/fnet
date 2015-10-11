@@ -5,10 +5,17 @@ import (
 	"net"
 )
 
-func Dial(addr string) (fnet.Connection, error) {
+func Dial(addr string) (fnet.Session, error) {
 	nativeConn, err := net.Dial("tcp", addr)
 	if err != nil {
-		return nil, err
+		return fnet.Session{}, err
 	}
-	return NewTCPConn(nativeConn), nil
+
+	wrappedConn := NewTCPConn(nativeConn)
+	session := fnet.Session{
+		Conn: wrappedConn,
+		Data: new(fnet.SessionStore),
+	}
+
+	return session, nil
 }

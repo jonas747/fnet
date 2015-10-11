@@ -15,7 +15,7 @@ func Monitor() {
 			routines := runtime.NumGoroutine()
 			var memstats runtime.MemStats
 			runtime.ReadMemStats(&memstats)
-			fmt.Printf("Goroutines: %d, Memory in use %dKB\n", routines, int(memstats.Alloc/1000))
+			fmt.Printf("Goroutines: %d, Memory in use %dKB, Last GC %d, Next GC: %d\n", routines, int(memstats.Alloc/1000), memstats.LastGC, memstats.NextGC)
 		}
 	}
 }

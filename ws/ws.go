@@ -2,7 +2,6 @@ package ws
 
 import (
 	"errors"
-	"fmt"
 	"github.com/jonas747/fnet"
 	"golang.org/x/net/websocket"
 	"net/http"
@@ -19,8 +18,11 @@ type WebsocketListener struct {
 func (w *WebsocketListener) Listen() error {
 	handler := func(ws *websocket.Conn) {
 		conn := NewWebsocketConn(ws)
-		fmt.Println("Received new connection")
-		w.Engine.HandleConn(conn)
+		session := fnet.Session{
+			Conn: conn,
+			Data: new(fnet.SessionStore),
+		}
+		w.Engine.HandleConn(session)
 	}
 
 	server := websocket.Server{Handler: handler}

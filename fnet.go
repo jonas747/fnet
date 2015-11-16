@@ -39,7 +39,11 @@ func NewHandler(callback interface{}, evt int32) (Handler, error) {
 		return Handler{}, err
 	}
 
-	dType := reflect.TypeOf(callback).In(1) // Get the type of the first parameter for later use
+	t := reflect.TypeOf(callback)
+	var dType reflect.Type
+	if t.NumIn() == 2 {
+		dType = reflect.TypeOf(callback).In(1) // Get the type of the first parameter for later use
+	}
 
 	return Handler{
 		CallBack: callback,

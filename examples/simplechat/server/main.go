@@ -61,7 +61,7 @@ func main() {
 	engine = fnet.DefaultEngine()
 	engine.OnConnClose = HandleConnectionClose
 	engine.OnConnOpen = HandleConnectionOpen
-	engine.Encoder = fnet.JsonEncoder
+	engine.Encoder = fnet.JsonEncoder{}
 
 	// Initialize the handlers
 	engine.AddHandler(fnet.NewHandlerSafe(HandleUserJoin, int32(simplechat.Events_USERJOIN)))
@@ -94,8 +94,7 @@ func HandleConnectionOpen(session fnet.Session) {
 }
 
 func HandleConnectionClose(session fnet.Session) {
-	name := user.GetName()
-	session.Data.Set("name", name)
+	name, _ := session.Data.GetString("name")
 	msg := &simplechat.ChatMsg{
 		From: proto.String("server"),
 		Msg:  proto.String("\"" + name + "\" Left! D:"),

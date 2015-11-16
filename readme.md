@@ -5,7 +5,7 @@ This is the reference client and server package for the fnet protocol (short for
 Meant to be used in games.
 
 ##fnet protocol
-fnet is a very lightweight and simple networking protocol (on top of tcp, websocket or whatever you want to implement yourself)
+fnet is a very lightweight and simple networking protocol (on top of tcp, websocket or whatever you want to implement yourself, probably gonna add ssl myself soon)
 Basically this is it:
 
      ----------------------------------

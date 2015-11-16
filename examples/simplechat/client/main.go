@@ -34,6 +34,7 @@ func main() {
 	flag.Parse()
 	fmt.Println("Running simplechat client!")
 	engine := fnet.DefaultEngine()
+	engine.Encoder = fnet.JsonEncoder{}
 
 	// stats
 	//go simplechat.Monitor()

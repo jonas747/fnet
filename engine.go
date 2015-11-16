@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"reflect"
+	"sync/atomic"
 )
 
 // The networking engine. Holds togheter all the connections and handlers
@@ -17,22 +18,26 @@ type Engine struct {
 	unregisterSession chan Session // Channel for unregistering connections
 	broadcastChan     chan []byte  // Channel for broadcasting messages to all connections
 
-	listeners []Listener        // Slice Containing all listeners
-	handlers  map[int32]Handler // Map with all the event handlers, their id's as keys
-	sessions  map[Session]bool  // Map containing all conncetions
-	ErrChan   chan error
+	listeners  []Listener        // Slice Containing all listeners
+	handlers   map[int32]Handler // Map with all the event handlers, their id's as keys
+	sessions   map[Session]bool  // Map containing all conncetions
+	ErrChan    chan error
+	numClients *int32
 }
 
 func DefaultEngine() *Engine {
+	var nClients int32
 	return &Engine{
+		ErrChan: make(chan error),
+		Encoder: ProtoEncoder{},
+
 		registerSession:   make(chan Session),
 		unregisterSession: make(chan Session),
 		broadcastChan:     make(chan []byte),
 		listeners:         make([]Listener, 0),
 		handlers:          make(map[int32]Handler),
 		sessions:          make(map[Session]bool),
-		ErrChan:           make(chan error),
-		Encoder:           ProtoEncoder{},
+		numClients:        &nClients,
 	}
 }
 
@@ -167,8 +172,10 @@ func (e *Engine) ListenChannels() {
 		select {
 		case d := <-e.registerSession: //Register a connection
 			e.sessions[d] = true
+			atomic.AddInt32(e.numClients, 1)
 		case d := <-e.unregisterSession: //Unregister a connection
 			delete(e.sessions, d)
+			atomic.AddInt32(e.numClients, -1)
 		case msg := <-e.broadcastChan: //Broadcast a message to all connections
 			for sess := range e.sessions {
 				err := sess.Conn.Send(msg)
@@ -181,7 +188,7 @@ func (e *Engine) ListenChannels() {
 }
 
 func (e *Engine) NumClients() int {
-	return len(e.sessions)
+	return int(atomic.LoadInt32(e.numClients))
 }
 
 func (e *Engine) CreateWireMessage(evtId int32, data interface{}) ([]byte, error) {

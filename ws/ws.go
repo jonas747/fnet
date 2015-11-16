@@ -59,7 +59,9 @@ type WebsocketConn struct {
 }
 
 func NewWebsocketConn(c *websocket.Conn) fnet.Connection {
-	store := &fnet.SessionStore{make(map[string]interface{})}
+	store := &fnet.SessionStore{
+		Data: make(map[string]interface{}),
+	}
 	conn := WebsocketConn{
 		sessionStore: store,
 		conn:         c,
@@ -75,7 +77,7 @@ func (w *WebsocketConn) Send(b []byte) error {
 	if !w.isOpen {
 		return errors.New("Cannot call WebsocketConn.Send() on a closed connection")
 	}
-	after := time.After(time.Duration(5) * time.Second) // Time out
+	after := time.After(time.Duration(60) * time.Second) // Time out
 	select {
 	case w.writeChan <- b:
 		return nil
@@ -103,6 +105,7 @@ func (w *WebsocketConn) Close() {
 		w.conn.Close()
 	}
 	if w.writing {
+		w.writing = false
 		w.stopWriting <- true
 	}
 }
@@ -132,7 +135,7 @@ func (w *WebsocketConn) writer() {
 		case m := <-w.writeChan:
 			err := websocket.Message.Send(w.conn, m)
 			if err != nil {
-				break
+				return
 			}
 		case <-w.stopWriting:
 			return

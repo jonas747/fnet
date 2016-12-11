@@ -11,6 +11,7 @@ type Connection interface {
 	Close()            // Closes the connections ands stops all goroutines associated with it
 	Run()              // Starts the writer and reader goroutines
 	Open() bool        // Wether this connection is open ot not
+	IP() string
 }
 
 type Session struct {

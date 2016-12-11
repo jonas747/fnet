@@ -4,8 +4,10 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
+	"log"
 	"reflect"
 	"sync/atomic"
+	"time"
 )
 
 // The networking engine. Holds togheter all the connections and handlers
@@ -124,6 +126,13 @@ func readHeader(header []byte) (evtId int32, payloadLength int32, err error) {
 
 // Retrieves the event id, decodes the data and calls the callback
 func (e *Engine) handleMessage(evtId int32, payload []byte, seesion Session) error {
+	started := time.Now()
+
+	defer func() {
+		since := time.Since(started)
+		log.Printf("Took %fμs to handle message %d\n", float64(since.Nanoseconds()/1000), evtId)
+	}()
+
 	handler, found := e.handlers[evtId]
 	if !found {
 		return ErrNoHandlerFound
@@ -178,10 +187,13 @@ func (e *Engine) ListenChannels() {
 			atomic.AddInt32(e.numClients, -1)
 		case msg := <-e.broadcastChan: //Broadcast a message to all connections
 			for sess := range e.sessions {
-				err := sess.Conn.Send(msg)
-				if err != nil {
-					e.ErrChan <- err
-				}
+				go func(session Session) {
+					err := session.Conn.Send(msg)
+					if err != nil {
+						e.ErrChan <- err
+						session.Conn.Close()
+					}
+				}(sess)
 			}
 		}
 	}

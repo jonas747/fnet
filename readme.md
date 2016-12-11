@@ -1,8 +1,6 @@
 #fnet
 
-This is the reference client and server package for the fnet protocol (short for fortia net), which basically is rpc with a event id first.
-
-Meant to be used in games.
+Simple rpc protocol.
 
 ##fnet protocol
 fnet is a very lightweight and simple networking protocol (on top of tcp, websocket or whatever you want to implement yourself, probably gonna add ssl myself soon)

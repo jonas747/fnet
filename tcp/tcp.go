@@ -98,7 +98,6 @@ func (t *TCPConn) Send(b []byte) error {
 	case t.writeChan <- b:
 		return nil
 	case <-after:
-		t.isOpen = false
 		t.Close()
 		return fnet.ErrTimeout
 	}

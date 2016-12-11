@@ -5,6 +5,8 @@ import (
 	"github.com/jonas747/fnet"
 	"golang.org/x/net/websocket"
 	"net/http"
+	"strings"
+	"sync"
 	"time"
 )
 
@@ -54,7 +56,7 @@ type WebsocketConn struct {
 	writeChan   chan []byte
 	stopWriting chan bool
 	writing     bool
-
+	sync.Mutex
 	isOpen bool
 }
 
@@ -82,13 +84,16 @@ func (w *WebsocketConn) Send(b []byte) error {
 	case w.writeChan <- b:
 		return nil
 	case <-after:
-		w.isOpen = false
 		w.Close()
 		return errors.New("Timed out sending payload to writechan")
 	}
 }
 
 func (w *WebsocketConn) Read(buf []byte) error {
+	if !w.isOpen {
+		return errors.New("Can't read from closed connection")
+	}
+
 	_, err := w.conn.Read(buf)
 	return err
 }
@@ -104,9 +109,13 @@ func (w *WebsocketConn) Close() {
 		w.isOpen = false
 		w.conn.Close()
 	}
+	w.Lock()
 	if w.writing {
 		w.writing = false
+		w.Unlock()
 		w.stopWriting <- true
+	} else {
+		w.Unlock()
 	}
 }
 
@@ -128,7 +137,10 @@ func (w *WebsocketConn) Run() {
 func (w *WebsocketConn) writer() {
 	w.writing = true
 	defer func() {
+		w.Lock()
 		w.writing = false
+		w.Unlock()
+		//close(w.stopWriting)
 	}()
 	for {
 		select {
@@ -141,4 +153,10 @@ func (w *WebsocketConn) writer() {
 			return
 		}
 	}
+}
+
+func (w *WebsocketConn) IP() string {
+	addr := w.conn.Request().RemoteAddr
+	split := strings.Split(addr, ":")
+	return split[0]
 }
